@@ -124,8 +124,8 @@ class RegressionModel(object):
                 self.b1.update(gradient[1], -self.lr)
                 self.w2.update(gradient[2], -self.lr)
                 self.b2.update(gradient[3], -self.lr)
-                if nn.as_scalar(loss) <= 0.02:
-                    break
+            if nn.as_scalar(self.get_loss(nn.Constant(dataset.x), nn.Constant(dataset.y))) <= 0.02:
+                return
 
 class DigitClassificationModel(object):
     """
