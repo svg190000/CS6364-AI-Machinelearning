@@ -47,8 +47,8 @@ class PerceptronModel(object):
         Train the perceptron until convergence.
         """
         "*** YOUR CODE HERE ***"
-        mistake = True
-        while mistake:
+        while True:
+            mistake = False
             for x, y in dataset.iterate_once(1):
                 label = nn.as_scalar(y)
                 prediction = self.get_prediction(x)
