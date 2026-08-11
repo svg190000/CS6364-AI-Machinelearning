@@ -65,18 +65,14 @@ class RegressionModel(object):
     to approximate sin(x) on the interval [-2pi, 2pi] to reasonable precision.
     """
     def __init__(self):
-        # Initialize your model parameters here
-        "*** YOUR CODE HERE ***"
-        # model parameters
-        hidden_size = 512
-        # hidden layer parameters (input -> hidden)
-        self.w1 = nn.Parameter(1, hidden_size)
-        self.b1 = nn.Parameter(1, hidden_size)
-        # output layer parameters (hidden -> output)
-        self.w2 = nn.Parameter(hidden_size, 1)
+        # One-hidden-layer MLP to approximate sin(x): 1 -> 512 -> 1
+        hiddenSize = 512
+        # Hidden layer parameters (input -> hidden)
+        self.w1 = nn.Parameter(1, hiddenSize)
+        self.b1 = nn.Parameter(1, hiddenSize)
+        # Output layer parameters (hidden -> output)
+        self.w2 = nn.Parameter(hiddenSize, 1)
         self.b2 = nn.Parameter(1, 1)
-
-        # learning rate
         self.lr = 0.05
 
     def run(self, x):
@@ -88,12 +84,11 @@ class RegressionModel(object):
         Returns:
             A node with shape (batch_size x 1) containing predicted y-values
         """
-        "*** YOUR CODE HERE ***"
-        # hidden layer: linear + bias + ReLU
+        # Hidden layer: linear + bias + ReLU
         l1Linear = nn.Linear(x, self.w1)
         l1Biased = nn.AddBias(l1Linear, self.b1)
         l1Activated = nn.ReLU(l1Biased)
-        # output layer: linear + bias (no ReLU)
+        # Output layer: linear + bias (no ReLU so outputs can be negative)
         l2Linear = nn.Linear(l1Activated, self.w2)
         return nn.AddBias(l2Linear, self.b2)
 
@@ -107,23 +102,25 @@ class RegressionModel(object):
                 to be used for training
         Returns: a loss node
         """
-        "*** YOUR CODE HERE ***"
+        # Mean squared error between predictions and targets
         return nn.SquareLoss(self.run(x), y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
-        "*** YOUR CODE HERE ***"
+        # Gradient descent until full-dataset loss is at most 0.02
         while True:
             for x, y in dataset.iterate_once(200):
                 loss = self.get_loss(x, y)
                 parameters = [self.w1, self.b1, self.w2, self.b2]
                 gradient = nn.gradients(loss, parameters)
+                # Negative learning rate => gradient descent (not ascent)
                 self.w1.update(gradient[0], -self.lr)
                 self.b1.update(gradient[1], -self.lr)
                 self.w2.update(gradient[2], -self.lr)
                 self.b2.update(gradient[3], -self.lr)
+            # Check once per epoch on all data (matches autograder metric)
             if nn.as_scalar(self.get_loss(nn.Constant(dataset.x), nn.Constant(dataset.y))) <= 0.02:
                 return
 
@@ -142,8 +139,15 @@ class DigitClassificationModel(object):
     working on this part of the project.)
     """
     def __init__(self):
-        # Initialize your model parameters here
-        "*** YOUR CODE HERE ***"
+        # One-hidden-layer MLP for MNIST: 784 -> 200 -> 10
+        hiddenSize = 200
+        # Hidden layer parameters (flattened image -> hidden)
+        self.w1 = nn.Parameter(784, hiddenSize)
+        self.b1 = nn.Parameter(1, hiddenSize)
+        # Output layer parameters (hidden -> 10 digit class logits)
+        self.w2 = nn.Parameter(hiddenSize, 10)
+        self.b2 = nn.Parameter(1, 10)
+        self.lr = 0.5
 
     def run(self, x):
         """
@@ -159,7 +163,13 @@ class DigitClassificationModel(object):
             A node with shape (batch_size x 10) containing predicted scores
                 (also called logits)
         """
-        "*** YOUR CODE HERE ***"
+        # Hidden layer: linear + bias + ReLU
+        l1Linear = nn.Linear(x, self.w1)
+        l1Biased = nn.AddBias(l1Linear, self.b1)
+        l1Activated = nn.ReLU(l1Biased)
+        # Output layer: linear + bias (no ReLU on logits)
+        l2Linear = nn.Linear(l1Activated, self.w2)
+        return nn.AddBias(l2Linear, self.b2)
 
     def get_loss(self, x, y):
         """
@@ -174,13 +184,27 @@ class DigitClassificationModel(object):
             y: a node with shape (batch_size x 10)
         Returns: a loss node
         """
-        "*** YOUR CODE HERE ***"
+        # Softmax cross-entropy over the 10 digit classes
+        return nn.SoftmaxLoss(self.run(x), y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
-        "*** YOUR CODE HERE ***"
+        # Gradient descent until validation accuracy is safely above 97%
+        while True:
+            for x, y in dataset.iterate_once(200):
+                loss = self.get_loss(x, y)
+                parameters = [self.w1, self.b1, self.w2, self.b2]
+                gradient = nn.gradients(loss, parameters)
+                # Negative learning rate => gradient descent
+                self.w1.update(gradient[0], -self.lr)
+                self.b1.update(gradient[1], -self.lr)
+                self.w2.update(gradient[2], -self.lr)
+                self.b2.update(gradient[3], -self.lr)
+            # Stop a bit above 97% so test accuracy is more likely to pass
+            if dataset.get_validation_accuracy() >= 0.975:
+                return
 
 class LanguageIDModel(object):
     """
