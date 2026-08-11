@@ -222,13 +222,14 @@ class LanguageIDModel(object):
         self.num_chars = 47
         self.languages = ["English", "Spanish", "Finnish", "Dutch", "Polish"]
 
-        # Initialize your model parameters here
-        "*** YOUR CODE HERE ***"
+        # RNN + classifier for language ID over character sequences
         outputSize = len(self.languages)
         hiddenSize = 200
+        # Shared recurrent weights: char embedding and previous-hidden transform
         self.wx = nn.Parameter(self.num_chars, hiddenSize)
         self.whidden = nn.Parameter(hiddenSize, hiddenSize)
         self.bhidden = nn.Parameter(1, hiddenSize)
+        # Output layer: final hidden state -> language logits
         self.woutput = nn.Parameter(hiddenSize, outputSize)
         self.boutput = nn.Parameter(1, outputSize)
         self.lr = 0.5
@@ -262,14 +263,16 @@ class LanguageIDModel(object):
             A node with shape (batch_size x 5) containing predicted scores
                 (also called logits)
         """
-        "*** YOUR CODE HERE ***"
+        # First character: no previous hidden state
         z = nn.Linear(xs[0], self.wx)
         z = nn.AddBias(z, self.bhidden)
         h = nn.ReLU(z)
+        # Remaining characters: combine current char with previous h (shared weights)
         for i in range(1, len(xs)):
             z = nn.Add(nn.Linear(xs[i], self.wx), nn.Linear(h, self.whidden))
             z = nn.AddBias(z, self.bhidden)
             h = nn.ReLU(z)
+        # Classify from the final hidden summary of the word (no ReLU on logits)
         return nn.AddBias(nn.Linear(h, self.woutput), self.boutput)
 
     def get_loss(self, xs, y):
@@ -286,10 +289,25 @@ class LanguageIDModel(object):
             y: a node with shape (batch_size x 5)
         Returns: a loss node
         """
-        "*** YOUR CODE HERE ***"
+        # Softmax cross-entropy over the 5 languages
+        return nn.SoftmaxLoss(self.run(xs), y)
 
     def train(self, dataset):
         """
         Trains the model.
         """
-        "*** YOUR CODE HERE ***"
+        # Gradient descent until validation accuracy is safely above 81%
+        while True:
+            for xs, y in dataset.iterate_once(100):
+                loss = self.get_loss(xs, y)
+                parameters = [self.wx, self.whidden, self.bhidden, self.woutput, self.boutput]
+                gradient = nn.gradients(loss, parameters)
+                # Negative learning rate => gradient descent
+                self.wx.update(gradient[0], -self.lr)
+                self.whidden.update(gradient[1], -self.lr)
+                self.bhidden.update(gradient[2], -self.lr)
+                self.woutput.update(gradient[3], -self.lr)
+                self.boutput.update(gradient[4], -self.lr)
+            # Stop above the 81% test threshold to leave some margin
+            if dataset.get_validation_accuracy() >= 0.85:
+                return
