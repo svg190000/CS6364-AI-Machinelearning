@@ -224,6 +224,14 @@ class LanguageIDModel(object):
 
         # Initialize your model parameters here
         "*** YOUR CODE HERE ***"
+        outputSize = len(self.languages)
+        hiddenSize = 200
+        self.wx = nn.Parameter(self.num_chars, hiddenSize)
+        self.whidden = nn.Parameter(hiddenSize, hiddenSize)
+        self.bhidden = nn.Parameter(1, hiddenSize)
+        self.woutput = nn.Parameter(hiddenSize, outputSize)
+        self.boutput = nn.Parameter(1, outputSize)
+        self.lr = 0.5
 
     def run(self, xs):
         """
@@ -255,6 +263,14 @@ class LanguageIDModel(object):
                 (also called logits)
         """
         "*** YOUR CODE HERE ***"
+        z = nn.Linear(xs[0], self.wx)
+        z = nn.AddBias(z, self.bhidden)
+        h = nn.ReLU(z)
+        for i in range(1, len(xs)):
+            z = nn.Add(nn.Linear(xs[i], self.wx), nn.Linear(h, self.whidden))
+            z = nn.AddBias(z, self.bhidden)
+            h = nn.ReLU(z)
+        return nn.AddBias(nn.Linear(h, self.woutput), self.boutput)
 
     def get_loss(self, xs, y):
         """
